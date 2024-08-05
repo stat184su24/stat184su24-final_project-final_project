@@ -1,0 +1,190 @@
+---
+title: "Initial EDA "
+author: "Jai abhishek singh"
+date: "5th august 2024"
+output:
+  html_document: default
+
+---
+
+
+## Global Cost of Living Analysis 
+
+### What is Cost of Living Index?
+
+A cost-of-living index is a theoretical measurement that tracks how much consumers need to spend to maintain a certain standard of living over time or across regions . This CLI dataset provides a standardized benchmark, with a value of 100 representing the cost of living in New York City, the reference city for this index. 
+
+The index encompasses various categories including groceries, restaurants, transportation, and utilities. By excluding rent, it offers a clear view of the everyday expenses faced by individuals. 
+  
+### Focus of this Study
+
+The research inquiry of this study centers on the relationship between 'rent costs' and the 'overall cost of living' in major cities across the globe. The objective is to analyze how rent contributes to the total living expenses in various urban areas and identify cities where rent constitutes a significant or minor portion of these expenses. 
+
+We frame the question as ; "How do rent costs compare to the overall cost of living in major cities worldwide?" 
+  
+## Exploring the Dataset
+
+### What Does it Contain?
+
+The dataset is from Kaggle and offers an extensive overview of cost of living , and rent indices across major cities worldwide. Each entry in the dataset represents a city, providing detailed metrics related to the cost of living and housing expenses. The dataset includes the following variables:
+
+- City: The name of the city.
+- Country: The country in which the city is located.
+- Cost_of_Living_Index (Excl. Rent): An index representing the relative prices of consumer goods and services, excluding accommodation costs. A value of 100 indicates parity with New York City.
+- Rent_Index: An index representing the cost of renting apartments in the city compared to New York City. A value of 100 reflects the same rental prices as New York City.
+- Cost_of_Living_Plus_Rent_Index: An index that combines both consumer goods prices and rent costs relative to New York City.
+- Groceries_Index: An index indicating grocery prices relative to New York City.
+- Restaurants_Index: An index representing the cost of meals and drinks at restaurants and bars, compared to New York City.
+- Local_Purchasing_Power: An index reflecting the relative purchasing power in the city based on the average net salary.
+
+The dataset contains a total of 8 variables, each offering insights into different aspects of living costs. For this study, we will focus on the "Cost_of_Living_Index (Excl. Rent)" and "Rent_Index" to analyze the proportion of rent within the overall cost of living.
+
+  
+### Data Pre-processing
+
+1. Handling Missing Data:
+Initially, some rows in the dataset had missing values for critical indexs like the Cost_of_Living_Index and Rent_Index. Since these indexs are essential for our analysis, i decided to exclude these rows .
+
+2. Calculating Rent Proportion:
+To better understand the impact of rent on the overall cost of living, i created a new column called Rent_Proportion. This column was calculated by dividing the Rent_Index by the Cost_of_Living_Index for each country. This new metric allowed us to calculate the share of rent in living expenses.
+
+3. Filtering for Relevant Regions:
+Given the dataset's global scope, we initially had data from countries all over the world. For a more focused analysis, we filtered the dataset to include only countries with some significant economic representation. 
+
+4. Visualizing Data:
+While visualizing the data, plotting each country individually became extremely difficult due to the number of countries. Therefore, i decided to create grouped visualizations by region and rent proportion categories.
+
+
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Load the dataset
+github_url <- "https://raw.githubusercontent.com/jailancer/final-project-jailancer/main/Cost_of_Living_Index_by_Country_2024.csv"
+data <- read.csv(github_url)
+
+# View unique country names
+unique(data$Country)
+
+# Check for missing values
+summary(data)
+
+names(data)
+
+# change missing values for indexs using median or mean 
+data <- data %>%
+  mutate(
+    Cost_of_Living_Index = ifelse(is.na(Cost_of_Living_Index), median(Cost_of_Living_Index, na.rm = TRUE), Cost_of_Living_Index),
+    Rent_Index = ifelse(is.na(Rent_Index), median(Rent_Index, na.rm = TRUE), Rent_Index)
+  )
+
+# remove rows which missing critical data
+data <- na.omit(data)
+```
+
+## Data Wrangling 
+
+```{r}
+# Calculate proportion of Rent Index to Cost of Living Index
+data <- data %>%
+  mutate(Rent_Proportion = Rent_Index / Cost_of_Living_Index)
+
+# View updated data with Rent Proportion
+head(data)
+
+# Identify countries with highest and lowest rent proportions
+most_expensive_rent <- data %>%
+  arrange(desc(Rent_Proportion)) %>%
+  select(Country, Cost_of_Living_Index, Rent_Index, Rent_Proportion) %>%
+  head(10)
+
+least_expensive_rent <- data %>%
+  arrange(Rent_Proportion) %>%
+  select(Country, Cost_of_Living_Index, Rent_Index, Rent_Proportion) %>%
+  head(10)
+
+most_expensive_rent
+least_expensive_rent
+```
+
+
+## Data Visualisation 
+
+### 1. Proportion of Rent in Overall Cost of Living by Country
+
+```{r}
+# Bar plot of Rent Proportion for each country
+ggplot(data, aes(x = reorder(Country, Rent_Proportion), y = Rent_Proportion)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  coord_flip() +
+  labs(title = "Proportion of Rent in Overall Cost of Living by Country",
+       x = "Country",
+       y = "Proportion of Rent") +
+  theme_minimal()
+```
+
+
+This bar plot shows the proportion of rent as part of the overall cost of living for each country. each bar in the plot represents a country, and the length of the bar indicates the fraction of the cost of living that is attributed to rent. Plot is sorted in descending order of rent proportion, providing a view of where rent is most significant.
+
+This plot is helpful in answering the research question ; "How do rent costs compare to overall cost of living in major cities worldwide?"  as it highlights countries where rent is a major contributor to the overall living expenses.
+
+Possible Improvements to graph : improve readability
+
+
+### 2. Rent Index vs. Overall Cost of Living Index
+```{r}
+
+# Scatter plot of Rent Index vs Cost of Living Index
+ggplot(data, aes(x = Cost_of_Living_Index, y = Rent_Index, label = Country)) +
+  geom_point(aes(color = Rent_Proportion), size = 3) +
+ 
+  scale_color_viridis_c() +
+  labs(title = "Rent Index vs. Overall Cost of Living Index",
+       x = "Cost of Living Index",
+       y = "Rent Index",
+       color = "Rent Proportion") +
+  theme_minimal()
+```
+
+This scatter plot displays the relationship between the Rent Index vs the Cost of Living Index across different countries. 
+
+Each point on the plot represents a country, with color indicating the rent proportion relative to the cost of living.
+
+This graph gives insight on whether higher living costs are typically associated with higher rent costs. It can help to identify patterns where rent is a significant part of living expenses.
+
+Possible Improvements:
+Highlight countries with labels and also can add a trend line
+
+### 3. Distribution of Rent Proportions in Major Cities
+
+```{r}
+# Histogram of Rent Proportions
+ggplot(data, aes(x = Rent_Proportion)) +
+  geom_histogram(binwidth = 0.05, fill = "coral", color = "black") +
+  labs(title = "Distribution of Rent Proportions in Major Cities",
+       x = "Rent Proportion",
+       y = "Frequency") +
+  theme_minimal()
+
+```
+
+This histogram shows the distribution of rent proportions across different countries. It indicates how common certain rent proportions are, effectively showcasing the spread and central tendency of rent costs as part of living expenses.
+
+It can helps understand the variability in how much rent contributes to the cost of living across countries.
+
+Possible Improvements:can Add labels or annotations 
+
+
+
+## Conclusion 
+
+These graphs provide a comprehensive analysis of the research question by examining both the magnitude and distribution of rent costs relative to the overall cost of living.
+
+The bar plot : gives a clear ranking of countries based on rent proportion.
+
+The scatter plot:  explores the relationship between rent and overall living costs, potentially indicating trends.
+
+The histogram:  provides a summary of how rent proportions are distributed globally.
+
