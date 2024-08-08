@@ -1,0 +1,219 @@
+---
+title: "Final Project"
+author: "Jai abhishek singh"
+date: "7th august 2024"
+output:
+  html_document: default
+
+---
+
+
+## Research Question:
+
+How does the proportion of rent in the overall cost of living vary across countries with different GDP levels, and what is the relationship between GDP and rent burden in various regions . 
+
+## Motivation:
+
+To Understand the relationship between country's GDP and the amount of rent within the overall cost of living which can then provide insights into well-being of people and housing affordability.
+
+This analysis aims to identify whether higher GDP levels correlate with higher or lower rent burdens
+
+This information is valuable for policymakers, economists, and individuals planning to relocate, as it highlights economic disparities and helps in making informed decisions regarding housing policies and personal financial planning.
+
+
+## Datasets
+
+# First Dataset :
+The primary dataset, "Cost of Living Index by Country," provides detailed indices for cost of living, rent, groceries, and local purchasing power for various countries. The data is benchmarked against New York City, offering a comprehensive view of living expenses worldwide.
+
+# Second Dataset:
+
+The secondary dataset, GDPC: "GDP Data from 1999 to 2022," includes annual GDP figures for countries worldwide, measured in billions of US dollars. This dataset enables the analysis of economic output and its potential impact on living costs and rent burdens.
+
+  
+### Data Pre-processing
+
+1. Handling Missing Data:
+Initially, some rows in the dataset had missing values for critical indexs like the Cost_of_Living_Index and Rent_Index. Since these indexs are essential for our analysis, i decided to exclude these rows .
+
+2. Calculating Rent Proportion:
+To better understand the impact of rent on the overall cost of living, i created a new column called Rent_Proportion. This column was calculated by dividing the Rent_Index by the Cost_of_Living_Index for each country. This new metric allowed us to calculate the share of rent in living expenses.
+
+3. Filtering for Relevant Regions:
+Given the dataset's global scope, we initially had data from countries all over the world. For a more focused analysis, we filtered the dataset to include only countries with some significant economic representation. 
+
+4. Visualizing Data:
+While visualizing the data, plotting each country individually became extremely difficult due to the number of countries. Therefore, i decided to create grouped visualizations by region and rent proportion categories.
+
+
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Load the dataset
+github_url <- "https://raw.githubusercontent.com/jailancer/final-project-jailancer/main/Cost_of_Living_Index_by_Country_2024.csv"
+data <- read.csv(github_url)
+
+# second dataset
+gdp_data <- read.csv("C:/Users/jai/Desktop/GDPC.csv")
+
+# Inspect first dataset
+str(data)
+glimpse(data)
+head(data)
+unique(data$Country)
+names(data)
+
+# Inspect the secondary data source
+str(gdp_data)
+glimpse(gdp_data)
+head(gdp_data)
+
+names(gdp_data)
+
+
+# change missing values for indexs using median or mean 
+data <- data %>%
+  mutate(
+    Cost_of_Living_Index = ifelse(is.na(Cost_of_Living_Index), median(Cost_of_Living_Index, na.rm = TRUE), Cost_of_Living_Index),
+    Rent_Index = ifelse(is.na(Rent_Index), median(Rent_Index, na.rm = TRUE), Rent_Index)
+  )
+
+# Filter, mutate, summarise, arrange, group_by examples
+filtered_data <- data %>%
+  filter(!is.na(Cost_of_Living_Index)) %>%
+  mutate(Rent_Proportion = Rent_Index / Cost_of_Living_Index) %>%
+  arrange(desc(Rent_Proportion))
+
+
+# Inspect the cleaned data
+glimpse(data)
+glimpse(gdp_data)
+
+
+# remove rows which missing critical data
+data <- na.omit(data)
+```
+
+## Data Wrangling 
+
+```{r}
+
+# Calculate the proportion of Rent Index to the Cost of Living Index
+data <- data %>%
+  mutate(Rent_Proportion = Rent_Index / Cost_of_Living_Index)
+
+# View data 
+head(data)
+
+# Identify countries with highest and lowest rent proportions
+most_expensive_rent <- data %>%
+  arrange(desc(Rent_Proportion)) %>%
+  select(Country, Cost_of_Living_Index, Rent_Index, Rent_Proportion) %>%
+  head(10)
+
+least_expensive_rent <- data %>%
+  arrange(Rent_Proportion) %>%
+  select(Country, Cost_of_Living_Index, Rent_Index, Rent_Proportion) %>%
+  head(10)
+
+most_expensive_rent
+least_expensive_rent
+
+
+# Merge the cost of living data with GDP data
+latest_gdp_data <- gdp_data %>%
+  select(Country, GDP_2022 = `X2022`)  # Select the latest GDP data for simplicity
+
+# Join datasets on 'Country'
+merged_data <- left_join(data, latest_gdp_data, by = "Country")
+
+# Inspect the dataset
+glimpse(merged_data)
+
+
+# Pivot the GDP data to a long format for analysis over multiple years
+gdp_long <- gdp_data %>%
+  pivot_longer(cols = starts_with("X1999"):starts_with("X2022"),
+               names_to = "Year",
+               values_to = "GDP")
+
+
+# calculate GDP per capita 
+calculate_gdp_per_capita <- function(gdp, population) {
+  return(gdp / population)
+}
+
+# for loop 
+for (i in 1:nrow(filtered_data)) {
+  if (filtered_data$Rent_Proportion[i] > 0.5) {
+    filtered_data$High_Rent[i] <- TRUE
+  } else {
+    filtered_data$High_Rent[i] <- FALSE
+  }
+}
+
+
+# Inspect data
+glimpse(gdp_long)
+
+
+```
+
+
+## Data Visualisation 
+
+### 1. Proportion of Rent in Overall Cost of Living by Country
+
+```{r}
+# Scatter plot with regression line
+ggplot(merged_data, aes(x = GDP_2022, y = Rent_Index)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(title = "GDP vs Rent Proportion",
+       x = "GDP in 2022 (Billions USD)",
+       y = "Rent Proportion")
+
+```
+
+The scatter plot shows no clear trend between GDP and rent proportion but , 
+Countries with low to moderate GDP levels show a wide range of rent proportions, suggesting that other factors influence rent costs significantly.
+
+
+```{r}
+# Scatter plot with color and size aesthetics
+ggplot(merged_data, aes(x = GDP_2022, y = Rent_Index, color = , size = Local_Purchasing_Power_Index)) +
+  geom_point() +
+  labs(title = "GDP vs Rent Proportion by Region",
+       x = "GDP in 2022 (Billions USD)",
+       y = "Rent Proportion",
+       color = "Region",
+       size = "Local Purchasing Power Index")
+
+```
+
+Adding the local purchasing power index to the scatter plot provides further insights such as Countries with higher purchasing power generally have lower rent proportions, regardless of their GDP levels.
+This suggests that local economic conditions and purchasing power play a crucial role in determining the rent burden, rather than GDP alone.
+
+```{r}
+# Histogram with density overlay
+ggplot(data, aes(x = Rent_Index)) +
+  geom_histogram(binwidth = 0.05, fill = "blue", alpha = 0.5) +
+  geom_density(aes(y = ..density..), color = "red") +
+  labs(title = "Distribution of Rent Proportion",
+       x = "Rent Proportion",
+       y = "Density")
+
+```
+This distribution plot highlights that most countries have rent proportions below 20%, with a small number of countries having significantly higher rent burdens.
+The long spike shows that in some countries, rent constitutes a major part of living expenses, which could be due to high real estate prices or low overall costs excluding rent.
+
+
+## Conclusion 
+
+After complete analysis it all indicates that there is not a really straightforward relationship between GDP and rent proportion. 
+Instead, local economic conditions, reflected by the local purchasing power index, appear to have a more substantial impact on the rent burden. Regions with higher local purchasing power generally have lower rent proportions, which suggests that residents in these areas can afford higher rents relative to their income. likewise,  in countries with lower purchasing power, rent constitutes a larger part of the cost of living, potentially indicating issues with housing affordability.
+
+For policymakers, focusing on improving local purchasing power and economic conditions could be more effective in reducing the rent burden than solely aiming to increase GDP. Further research could explore specific factors within regions that contribute to these patterns, such as government housing policies, urbanization rates, and cultural behaviours towards renting vs. owning property.
